@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install && npm install --prefix example-preact",
+  "buildCommand": "npm run build:preact && npm run build:vercel --prefix example-preact",
+  "outputDirectory": "example-preact/dist"
+}
