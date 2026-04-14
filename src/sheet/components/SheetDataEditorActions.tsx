@@ -1,7 +1,5 @@
 import { useState } from 'preact/hooks';
 import {
-  ButtonGroup,
-  ButtonGroupDefinition,
   ConfirmationModal,
   Input,
   Select,
@@ -15,6 +13,9 @@ import {
   PlusIcon,
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslations } from '@/i18';
 import {
@@ -24,6 +25,7 @@ import {
   SheetDefinition,
   SheetRow,
   SheetViewMode,
+  TranslationKey,
 } from '@/types';
 import { useImporterDefinition } from '@/importer/hooks';
 import { useImporterState } from '@/importer/reducer';
@@ -45,6 +47,7 @@ interface Props {
   rowValidationSummary: Record<SheetViewMode, number>;
   resetState: () => void;
   enumLabelDict: EnumLabelDict;
+  scrollToRow?: ((rowIndex: number) => void) | null;
 }
 
 export default function SheetDataEditorActions({
@@ -64,6 +67,7 @@ export default function SheetDataEditorActions({
   rowValidationSummary,
   resetState,
   enumLabelDict,
+  scrollToRow,
 }: Props) {
   const { csvDownloadMode, availableActions } = useImporterDefinition();
   const { t } = useTranslations();
@@ -74,6 +78,7 @@ export default function SheetDataEditorActions({
     useState(false);
   const [resetConfirmationModalOpen, setResetConfirmationModalOpen] =
     useState(false);
+  const [errorsPanelOpen, setErrorsPanelOpen] = useState(false);
 
   const disabledButtonClasses =
     'pointer-events-none cursor-not-allowed opacity-50';
@@ -107,48 +112,121 @@ export default function SheetDataEditorActions({
     filterByErrorOptions.push(errorFilterOption(errorColumnFilter));
   }
 
-  const viewModeButtons: ButtonGroupDefinition[] = [
-    {
-      value: 'all',
-      label: t('sheet.all') + ` (${rowValidationSummary.all})`,
-      onClick: () => {
-        setSelectedRows([]);
-        setViewMode('all');
-      },
-      variant: 'default',
-    },
-    {
-      value: 'valid',
-      label: t('sheet.valid') + ` (${rowValidationSummary.valid})`,
-      onClick: () => {
-        setSelectedRows([]);
-        setViewMode('valid');
-      },
-      variant: 'default',
-    },
-    {
-      value: 'errors',
-      label: t('sheet.invalid') + ` (${rowValidationSummary.errors})`,
-      onClick: () => {
-        setSelectedRows([]);
-        setViewMode('errors');
-      },
-      variant: 'danger',
-    },
-  ];
-
   function onRemoveRows() {
     removeRows({ rows: selectedRows, sheetId: sheetDefinition.id });
     setSelectedRows([]);
   }
 
-  return (
-    <div className="my-5 flex items-center">
-      <div className="flex grow flex-wrap items-center gap-5">
-        <div>
-          <ButtonGroup activeButton={viewMode} buttons={viewModeButtons} />
-        </div>
+  const formatCount = (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 
+  return (
+    <div className="flex flex-col">
+      {/* Summary bar: All | Valid | Invalid (Flatfile-style) */}
+      <div className="flex flex-wrap items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
+        <div className="flex items-center gap-1 text-sm text-gray-600">
+          <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" aria-hidden />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedRows([]);
+            setViewMode('all');
+          }}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            viewMode === 'all'
+              ? 'bg-gray-200 text-gray-900'
+              : 'bg-transparent text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {t('sheet.all')} {formatCount(rowValidationSummary.all)}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedRows([]);
+            setViewMode('valid');
+          }}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            viewMode === 'valid'
+              ? 'bg-hello-csv-success-extra-light text-hello-csv-success'
+              : 'bg-transparent text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {t('sheet.valid')} {formatCount(rowValidationSummary.valid)}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedRows([]);
+            setViewMode('errors');
+          }}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            viewMode === 'errors'
+              ? 'bg-hello-csv-danger-extra-light text-hello-csv-danger'
+              : 'bg-transparent text-gray-600 hover:bg-gray-100'
+          } ${rowValidationSummary.errors > 0 ? 'text-hello-csv-danger' : ''}`}
+        >
+          {t('sheet.invalid')} {formatCount(rowValidationSummary.errors)}
+        </button>
+        {sheetValidationErrors.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setErrorsPanelOpen((o) => !o)}
+            className="ml-2 flex items-center gap-1.5 rounded-md border border-hello-csv-danger-extra-light bg-hello-csv-danger-extra-light px-3 py-1.5 text-sm font-medium text-hello-csv-danger hover:bg-red-100"
+          >
+            {errorsPanelOpen ? (
+              <ChevronDownIcon className="h-4 w-4" aria-hidden />
+            ) : (
+              <ChevronRightIcon className="h-4 w-4" aria-hidden />
+            )}
+            {t('sheet.invalid')} list ({sheetValidationErrors.length})
+          </button>
+        )}
+      </div>
+
+      {/* Errors list panel: click to scroll to row */}
+      {errorsPanelOpen && sheetValidationErrors.length > 0 && (
+        <div className="max-h-48 overflow-y-auto border-b border-gray-200 bg-red-50/50 px-4 py-2">
+          <p className="mb-2 text-xs font-medium text-gray-600">
+            Click a row to scroll to it in the table.
+          </p>
+          <ul className="space-y-1 text-sm">
+            {sheetValidationErrors.map((err, i) => {
+              const colLabel =
+                sheetDefinition.columns.find((c) => c.id === err.columnId)
+                  ?.label ?? err.columnId;
+              return (
+                <li key={`${err.rowIndex}-${err.columnId}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => scrollToRow?.(err.rowIndex)}
+                    className="flex w-full items-start gap-2 rounded px-2 py-1 text-left text-hello-csv-danger hover:bg-red-100"
+                  >
+                    <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      <strong>Row {err.rowIndex + 1}</strong>, {colLabel}:{' '}
+                      {t(err.message as TranslationKey)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Toolbar: Filter, Search, Actions */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <Select
+          clearable
+          displayPlaceholderWhenSelected
+          placeholder={t('sheet.filterByError')}
+          classes="min-w-40"
+          options={filterByErrorOptions}
+          value={errorColumnFilter}
+          onChange={(value) => setErrorColumnFilter(value as string)}
+        />
         {availableActions.includes('search') && (
           <Input
             clearable
@@ -158,66 +236,83 @@ export default function SheetDataEditorActions({
             iconBuilder={(props) => <MagnifyingGlassIcon {...props} />}
           />
         )}
-
-        {availableActions.includes('removeRows') && (
-          <Tooltip
-            tooltipText={t(
-              selectedRows.length <= 0
-                ? 'sheet.removeRowsTooltipNoRowsSelected'
-                : 'sheet.removeRowsTooltip'
-            )}
-          >
-            <TrashIcon
-              role="button"
-              tabIndex={0}
-              aria-label={t(
+        <div className="flex items-center gap-1">
+          {availableActions.includes('removeRows') && (
+            <Tooltip
+              tooltipText={t(
                 selectedRows.length <= 0
                   ? 'sheet.removeRowsTooltipNoRowsSelected'
                   : 'sheet.removeRowsTooltip'
               )}
-              className={`h-6 w-6 ${selectedRows.length > 0 ? 'cursor-pointer' : disabledButtonClasses}`}
-              onClick={() => setRemoveConfirmationModalOpen(true)}
-            />
-          </Tooltip>
-        )}
-
-        {availableActions.includes('addRows') && (
-          <Tooltip tooltipText={t('sheet.addRowsTooltip')}>
-            <PlusIcon
-              className="h-6 w-6 cursor-pointer"
-              onClick={addEmptyRow}
-            />
-          </Tooltip>
-        )}
-
-        {availableActions.includes('downloadCsv') && (
-          <Tooltip tooltipText={t('sheet.downloadSheetTooltip')}>
-            <ArrowDownTrayIcon
-              className={`h-6 w-6 ${
-                rowData.length > 0 ? 'cursor-pointer' : disabledButtonClasses
-              }`}
-              onClick={() =>
-                downloadSheetAsCsv(
-                  sheetDefinition,
-                  rowData,
-                  enumLabelDict,
-                  csvDownloadMode
-                )
-              }
-            />
-          </Tooltip>
-        )}
-
-        <Select
-          clearable
-          displayPlaceholderWhenSelected
-          placeholder={t('sheet.filterByError')}
-          classes="min-w-48"
-          options={filterByErrorOptions}
-          value={errorColumnFilter}
-          onChange={(value) => setErrorColumnFilter(value as string)}
-        />
-
+            >
+              <TrashIcon
+                role="button"
+                tabIndex={0}
+                aria-label={t(
+                  selectedRows.length <= 0
+                    ? 'sheet.removeRowsTooltipNoRowsSelected'
+                    : 'sheet.removeRowsTooltip'
+                )}
+                className={`h-5 w-5 ${selectedRows.length > 0 ? 'cursor-pointer text-gray-600 hover:text-gray-900' : disabledButtonClasses}`}
+                onClick={() => setRemoveConfirmationModalOpen(true)}
+              />
+            </Tooltip>
+          )}
+          {availableActions.includes('addRows') && (
+            <Tooltip tooltipText={t('sheet.addRowsTooltip')}>
+              <PlusIcon
+                className="h-5 w-5 cursor-pointer text-gray-600 hover:text-gray-900"
+                onClick={addEmptyRow}
+              />
+            </Tooltip>
+          )}
+          {availableActions.includes('downloadCsv') && (
+            <Tooltip tooltipText={t('sheet.downloadSheetTooltip')}>
+              <ArrowDownTrayIcon
+                className={`h-5 w-5 ${
+                  rowData.length > 0 ? 'cursor-pointer text-gray-600 hover:text-gray-900' : disabledButtonClasses
+                }`}
+                onClick={() =>
+                  downloadSheetAsCsv(
+                    sheetDefinition,
+                    rowData,
+                    enumLabelDict,
+                    csvDownloadMode
+                  )
+                }
+              />
+            </Tooltip>
+          )}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {validationInProgress && (
+            <>
+              <Spinner color="dark" />
+              <span className="text-xs text-gray-500">Validating…</span>
+            </>
+          )}
+          {availableActions.includes('resetState') && (
+            <>
+              <Tooltip tooltipText={t('sheet.resetTooltip')}>
+                <XMarkIcon
+                  className="h-5 w-5 cursor-pointer text-gray-600 hover:text-gray-900"
+                  onClick={() => setResetConfirmationModalOpen(true)}
+                />
+              </Tooltip>
+              <ConfirmationModal
+                open={resetConfirmationModalOpen}
+                setOpen={setResetConfirmationModalOpen}
+                onConfirm={resetState}
+                title={t('sheet.resetConfirmationModalTitle')}
+                confirmationText={t(
+                  'sheet.resetConfirmationModalConfirmationText'
+                )}
+                subTitle={t('sheet.resetConfirmationModalSubTitle')}
+                variant="danger"
+              />
+            </>
+          )}
+        </div>
         {availableActions.includes('removeRows') && (
           <ConfirmationModal
             open={removeConfirmationModalOpen}
@@ -232,37 +327,6 @@ export default function SheetDataEditorActions({
             })}
             variant="danger"
           />
-        )}
-      </div>
-      <div className="ml-5 flex items-center">
-        {validationInProgress && (
-          <>
-            <Spinner color="dark" />
-            <div className="mr-2" />
-          </>
-        )}
-
-        {availableActions.includes('resetState') && (
-          <>
-            <Tooltip tooltipText={t('sheet.resetTooltip')}>
-              <XMarkIcon
-                className="h-6 w-6 cursor-pointer"
-                onClick={() => setResetConfirmationModalOpen(true)}
-              />
-            </Tooltip>
-
-            <ConfirmationModal
-              open={resetConfirmationModalOpen}
-              setOpen={setResetConfirmationModalOpen}
-              onConfirm={resetState}
-              title={t('sheet.resetConfirmationModalTitle')}
-              confirmationText={t(
-                'sheet.resetConfirmationModalConfirmationText'
-              )}
-              subTitle={t('sheet.resetConfirmationModalSubTitle')}
-              variant="danger"
-            />
-          </>
         )}
       </div>
     </div>

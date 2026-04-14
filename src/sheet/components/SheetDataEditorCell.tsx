@@ -80,6 +80,9 @@ export default function SheetDataEditorCell({
     : readOnly
       ? 'bg-hello-csv-muted'
       : '';
+  const cellTextColor = errorsText
+    ? 'text-hello-csv-danger font-medium'
+    : 'text-gray-900';
 
   if (!editMode) {
     return (
@@ -95,7 +98,7 @@ export default function SheetDataEditorCell({
           aria-label={`row ${Number(rowId) + 1} ${columnDefinition.label} ${displayValue}`}
           {...longPressHandlers}
           onClick={(e) => !readOnly && e.detail > 1 && setEditMode(true)}
-          className={`h-full w-full py-4 pr-3 pl-4 ${cellBackgroundColor} touch-manipulation truncate overflow-hidden whitespace-nowrap`}
+          className={`h-full w-full py-4 pr-3 pl-4 ${cellBackgroundColor} ${cellTextColor} touch-manipulation truncate overflow-hidden whitespace-nowrap`}
           title={valueEmpty ? undefined : `${displayValue}`}
         >
           {columnDefinition.customRender

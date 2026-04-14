@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 .rubik {
   font-family: 'Rubik', sans-serif;
 }

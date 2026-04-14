@@ -13,7 +13,7 @@ import { useTranslations } from '@/i18';
 import { findRowIndex } from '../utils';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { RefObject, useCallback } from 'preact/compat';
+import { RefObject, useCallback, useEffect } from 'preact/compat';
 import { CHECKBOX_COLUMN_ID, ESTIMATED_ROW_HEIGHT } from '@/constants';
 import { useImporterDefinition } from '@/importer/hooks';
 
@@ -30,6 +30,8 @@ interface Props {
   setSelectedRows: (rows: SheetRow[]) => void;
   tableContainerRef: RefObject<HTMLDivElement>;
   enumLabelDict: EnumLabelDict;
+  /** When set, the table will assign scrollToRow(index) so parent can scroll to a row. */
+  onScrollToRowReady?: (scrollToRow: (rowIndex: number) => void) => void;
 }
 
 export default function SheetDataEditorTable({
@@ -41,6 +43,7 @@ export default function SheetDataEditorTable({
   setSelectedRows,
   tableContainerRef,
   enumLabelDict,
+  onScrollToRowReady,
 }: Props) {
   const { t } = useTranslations();
   const { availableActions } = useImporterDefinition();
@@ -66,6 +69,14 @@ export default function SheetDataEditorTable({
     measureElement: (element) => element?.getBoundingClientRect().height,
     overscan: 20,
   });
+
+  useEffect(() => {
+    if (onScrollToRowReady) {
+      onScrollToRowReady((rowIndex: number) => {
+        rowVirtualizer.scrollToIndex(rowIndex, { align: 'start', behavior: 'smooth' });
+      });
+    }
+  }, [onScrollToRowReady, rowVirtualizer]);
 
   const visibleRows = rowVirtualizer.getVirtualItems().map((virtualRow) => ({
     row: rows[virtualRow.index],

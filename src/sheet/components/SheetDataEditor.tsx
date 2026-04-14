@@ -172,10 +172,11 @@ export default function SheetDataEditor({
   }
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollToRowFn, setScrollToRowFn] = useState<((index: number) => void) | null>(null);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-none">
+      <div className="sticky top-0 z-20 flex-none border-b border-gray-200 bg-white shadow-sm">
         <SheetDataEditorActions
           sheetDefinition={sheetDefinition}
           rowData={rowData}
@@ -193,6 +194,7 @@ export default function SheetDataEditor({
           rowValidationSummary={rowValidationSummary}
           resetState={resetState}
           enumLabelDict={enumLabelDict}
+          scrollToRow={scrollToRowFn}
         />
       </div>
 
@@ -206,6 +208,7 @@ export default function SheetDataEditor({
           onCellValueChanged={onCellValueChanged}
           setSelectedRows={setSelectedRows}
           enumLabelDict={enumLabelDict}
+          onScrollToRowReady={setScrollToRowFn}
         />
       </div>
     </div>
